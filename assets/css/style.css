@@ -1,0 +1,41 @@
+.todayContent {
+  background-color: lightblue;
+  padding: 20px;
+  color: white;
+}
+.weather-hr {
+  border: 1px solid black;
+  width: 100%;
+}
+.btn {
+  margin: 5px;
+  border: 1px solid #000;
+  padding: 0.275rem 0.5rem;
+  border-spacing: 0.5rem;
+  border-radius: 0;
+  line-height: 1.5;
+  box-shadow: -6px 6px 0 0 #000;
+}
+
+.weather-search {
+  min-height: 40px !important;
+}
+.error-msg {
+  background-color: white;
+  display: inline-block;
+  padding: 6px;
+  color: black;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+.hide {
+  display: none;
+}
+
+.forecastCard {
+  border: 1px solid black;
+  margin-left: 15px;
+  margin-bottom: 6px;
+  box-shadow: -6px 6px 0 0 #000;
+}
