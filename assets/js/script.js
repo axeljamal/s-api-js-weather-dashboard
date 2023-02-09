@@ -4,6 +4,12 @@ const searchInput = document.getElementById("search-input");
 const todayWrapper = document.getElementById("today");
 let todayContent = document.createElement("div");
 const forecast = document.getElementById("forecast");
+const historyWrapper = document.getElementById("history");
+const data = localStorage.getItem("city-data");
+let cityData = data ? JSON.parse(data) : [];
+const errorMsgCont = document.querySelector(".error-msg");
+const clearHistory = document.getElementById("clear-history");
+todayContent.setAttribute("class", "todayContent");
 
 // add event listener for search button input and to fetch the date
 searchButton.addEventListener("click", function (e) {
@@ -112,7 +118,7 @@ function clearItem() {
   todayContent.innerHTML = "";
 }
 
-// Url need to display the icons for each weather 
+// Url need to display the icons for each weather
 function getImageUrl(icon) {
   return `http://openweathermap.org/img/wn/${icon}@2x.png`;
 }
@@ -192,4 +198,3 @@ function timeOfDay(day) {
   let lastTime = dayjs(lastDay.dt_txt).format("HH:mm");
   return lastTime;
 }
-
