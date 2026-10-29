@@ -23,10 +23,15 @@
   https://axeljamal.github.io/s-api-js-weather-dashboard/
   
   ## Screenshot
-  ![WeatherJS](https://user-images.githubusercontent.com/119621308/221939490-22b44b50-fb0f-4ca4-80a1-d431ebd5c502.png)
+  ![Weather Dashboard](./assets/images/screenshot.jpg)
 
   ## Usage
-  For checking current weather including 5-day forecasts
+  Search for any city to see its current weather and a 5-day forecast, powered by the OpenWeather API.
+
+  - Current conditions: temperature, feels like, humidity, wind (km/h), pressure, sunrise and sunset in the city's local time
+  - 5-day forecast with each day's high and low
+  - Recent searches saved in your browser
+  - Responsive "liquid glass" design whose colours change with the weather
 
   ## License
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
