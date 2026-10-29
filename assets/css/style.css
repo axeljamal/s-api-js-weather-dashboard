@@ -131,6 +131,67 @@ body {
   }
 }
 
+/* ---------- 3D scene (blobs are the fallback without WebGL) ---------- */
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  display: block;
+}
+
+.has-3d .blob {
+  display: none;
+}
+
+/* ---------- 3D tilt and flip-in ---------- */
+.tilt {
+  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tilt.is-tilting {
+  transition: transform 0.1s linear;
+}
+
+/* glare that follows the pointer */
+.tilt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--gx, 50%) var(--gy, 0%),
+    rgba(255, 255, 255, 0.3),
+    transparent 55%
+  );
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+
+.tilt.is-tilting::after {
+  opacity: 1;
+}
+
+.flip-in,
+.forecast-card {
+  animation: flip-in 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 90ms + 100ms);
+}
+
+.flip-in {
+  animation-delay: 0s;
+}
+
+@keyframes flip-in {
+  from {
+    opacity: 0;
+    transform: perspective(1000px) rotateX(-70deg) translateY(40px);
+  }
+}
+
 /* ---------- Liquid glass surface ---------- */
 .glass,
 .glass-chip {
@@ -379,6 +440,13 @@ body {
   height: 120px;
   margin: -20px -10px -20px 0;
   filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+  animation: bob 5s ease-in-out infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-8px) rotate(-3deg);
+  }
 }
 
 .today-temp {
@@ -448,11 +516,6 @@ body {
   align-items: center;
   padding: 20px 12px;
   text-align: center;
-  transition: transform 0.25s ease;
-}
-
-.forecast-card:hover {
-  transform: translateY(-4px);
 }
 
 .forecast-card h3 {
@@ -479,6 +542,336 @@ body {
 .forecast-temp span {
   color: var(--text-soft);
   font-weight: 400;
+}
+
+/* ---------- Floating API flow panel ---------- */
+.api-flow {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 10;
+  width: min(960px, calc(100% - 32px));
+  border-radius: 24px;
+  background: rgba(15, 25, 50, 0.35);
+  transform: translateX(-50%);
+  animation: hover-float 6s ease-in-out infinite;
+}
+
+@keyframes hover-float {
+  50% {
+    transform: translateX(-50%) translateY(-6px);
+  }
+}
+
+.api-flow-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 18px;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.api-flow-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.api-flow-status {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #6dffa8;
+  box-shadow: 0 0 8px #6dffa8;
+  animation: blink 2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.chevron {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-3px);
+  transition: transform 0.3s;
+}
+
+.api-flow.collapsed .chevron {
+  transform: rotate(-135deg) translateY(-3px);
+}
+
+.api-flow-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  padding: 0 18px 16px;
+  transition: grid-template-rows 0.35s ease, padding 0.35s ease;
+}
+
+.api-flow.collapsed .api-flow-body {
+  grid-template-rows: 0fr;
+  padding-bottom: 0;
+}
+
+.api-flow-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 0 4px;
+  align-items: center;
+}
+
+.flow-node {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.flow-node code {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+}
+
+.node-app.rendering {
+  animation: render-pulse 1s ease-out;
+}
+
+@keyframes render-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(109, 255, 168, 0.7);
+    border-color: #6dffa8;
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba(109, 255, 168, 0);
+  }
+}
+
+.lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lane {
+  display: grid;
+  grid-template-columns: 26px 1fr 170px;
+  align-items: center;
+  column-gap: 8px;
+  transition: opacity 0.3s;
+}
+
+.lane-num {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+}
+
+.track {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wire {
+  position: relative;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 2px;
+}
+
+.lane-label {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.packet {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.8);
+  opacity: 0;
+}
+
+.lane.sending .packet {
+  animation: packet-send 0.7s ease-in forwards;
+}
+
+.lane.receiving .packet {
+  background: #6dffa8;
+  box-shadow: 0 0 12px 3px rgba(109, 255, 168, 0.8);
+  animation: packet-return 0.7s ease-out forwards;
+}
+
+.lane.error .packet {
+  background: #ff7d7d;
+  box-shadow: 0 0 12px 3px rgba(255, 125, 125, 0.8);
+  animation: packet-return 0.7s ease-out forwards;
+}
+
+@keyframes packet-send {
+  from {
+    left: 0;
+    opacity: 1;
+  }
+  to {
+    left: calc(100% - 12px);
+    opacity: 1;
+  }
+}
+
+@keyframes packet-return {
+  from {
+    left: calc(100% - 12px);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    left: 0;
+    opacity: 0;
+  }
+}
+
+/* server is working: dashes run along the wire */
+.lane.waiting .wire {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.8) 0 8px,
+    transparent 8px 16px
+  );
+  background-size: 32px 2px;
+  animation: dash 0.6s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    background-position: 32px 0;
+  }
+}
+
+.lane.waiting .node-api,
+.lane.sending .node-api {
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.35);
+}
+
+.lane.done .node-api {
+  border-color: rgba(109, 255, 168, 0.7);
+}
+
+.lane.done .lane-num {
+  background: rgba(109, 255, 168, 0.25);
+  border-color: rgba(109, 255, 168, 0.7);
+}
+
+.lane.error .node-api {
+  border-color: rgba(255, 125, 125, 0.8);
+}
+
+.lane.skipped {
+  opacity: 0.4;
+}
+
+.api-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 62px;
+  margin-top: 10px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.api-log li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+  animation: log-in 0.4s ease-out;
+}
+
+@keyframes log-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.log-status {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.log-status.ok {
+  background: rgba(109, 255, 168, 0.25);
+}
+
+.log-status.bad {
+  background: rgba(255, 125, 125, 0.3);
+}
+
+.log-url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-meta {
+  flex-shrink: 0;
+  color: var(--text-soft);
 }
 
 /* ---------- States ---------- */
@@ -574,6 +967,35 @@ body {
     text-align: left;
   }
 
+  /* API panel: browser node on top, lanes underneath */
+  .api-flow {
+    bottom: 8px;
+    width: calc(100% - 16px);
+  }
+
+  .api-flow-title {
+    display: none;
+  }
+
+  .flow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .node-app {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .lane {
+    grid-template-columns: 26px 1fr 120px;
+  }
+
+  .lane .node-api code,
+  .log-meta {
+    display: none;
+  }
+
   .forecast-card h3 { grid-area: day; }
   .forecast-date { grid-area: date; }
   .forecast-card img { grid-area: icon; width: 56px; height: 56px; }
@@ -582,7 +1004,13 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .blob {
+  .blob,
+  .flip-in,
+  .forecast-card,
+  .today-icon,
+  .api-flow,
+  .live-dot,
+  .lane.waiting .wire {
     animation: none;
   }
   * {

@@ -14,6 +14,8 @@ const errorMsgCont = document.querySelector(".error-msg");
 const clearHistory = document.getElementById("clear-history");
 
 let cityData = loadHistory();
+// each search gets a run number so slow replies from an older search are ignored
+let runId = 0;
 
 // Search form submit (also handles pressing Enter)
 searchForm.addEventListener("submit", function (e) {
@@ -29,12 +31,15 @@ searchForm.addEventListener("submit", function (e) {
 // Geocode a city name, then load its weather
 async function searchCity(city) {
   setLoading(true);
+  const run = startRun({ source: "search", city });
   try {
-    const res = await fetch(
+    const res = await apiFetch(
+      "geo",
       `${API_base}/geo/1.0/direct?q=${encodeURIComponent(city)}&limit=1&appid=${API_key}`
     );
     if (!res.ok) throw new Error(`Geocoding failed (${res.status})`);
     const results = await res.json();
+    if (run !== runId) return;
     if (!results.length) {
       errorMsg(`Couldn't find "${city}". Check the spelling and try again.`);
       setLoading(false);
@@ -45,36 +50,91 @@ async function searchCity(city) {
     searchInput.value = "";
     hideError();
     storeCity({ name, country: place.country, lat: place.lat, lon: place.lon });
-    await getData(place.lat, place.lon);
+    await getData({ name, country: place.country, lat: place.lat, lon: place.lon });
   } catch (err) {
     console.error(err);
+    if (run !== runId) return;
     errorMsg("Something went wrong fetching the weather. Please try again.");
     setLoading(false);
   }
 }
 
 // Fetch current weather and 5-day / 3-hour forecast together
-async function getData(lat, lon) {
+// city: { name, country, lat, lon } from geocoding or the saved history
+async function getData(city) {
+  const { lat, lon } = city;
+  const run = runId;
   setLoading(true);
   try {
     const query = `lat=${lat}&lon=${lon}&appid=${API_key}&units=metric`;
     const [currentRes, forecastRes] = await Promise.all([
-      fetch(`${API_base}/data/2.5/weather?${query}`),
-      fetch(`${API_base}/data/2.5/forecast?${query}`),
+      apiFetch("weather", `${API_base}/data/2.5/weather?${query}`),
+      apiFetch("forecast", `${API_base}/data/2.5/forecast?${query}`),
     ]);
     if (!currentRes.ok || !forecastRes.ok) {
       throw new Error(`Weather request failed (${currentRes.status}/${forecastRes.status})`);
     }
     const current = await currentRes.json();
     const forecastData = await forecastRes.json();
+    if (run !== runId) return;
     hideError();
-    createTodayContent(current);
+    createTodayContent(current, city);
     createForecast(forecastData);
+    report("api:render", {});
   } catch (err) {
     console.error(err);
+    if (run !== runId) return;
     errorMsg("Something went wrong fetching the weather. Please try again.");
     setLoading(false);
   }
+}
+
+// fetch() that also reports each call to the API flow panel (api-flow.js)
+async function apiFetch(step, url) {
+  const start = performance.now();
+  const run = runId;
+  report("api:request", { step, url, run });
+  try {
+    const res = await fetch(url);
+    let data;
+    try {
+      data = await res.clone().json();
+    } catch {
+      data = null;
+    }
+    report("api:response", {
+      step,
+      url,
+      run,
+      ok: res.ok,
+      status: res.status,
+      ms: Math.round(performance.now() - start),
+      bytes: Number(res.headers.get("content-length")) || JSON.stringify(data || "").length,
+      data,
+    });
+    return res;
+  } catch (err) {
+    report("api:response", {
+      step,
+      url,
+      run,
+      ok: false,
+      status: 0,
+      ms: Math.round(performance.now() - start),
+      error: "Network error",
+    });
+    throw err;
+  }
+}
+
+function startRun(detail) {
+  runId++;
+  report("api:start", { ...detail, run: runId });
+  return runId;
+}
+
+function report(type, detail) {
+  document.dispatchEvent(new CustomEvent(type, { detail }));
 }
 
 function errorMsg(message) {
@@ -92,14 +152,19 @@ function setLoading(isLoading) {
 }
 
 // Create and display current weather
-function createTodayContent(data) {
+function createTodayContent(data, city) {
   const weather = data.weather[0];
   setTheme(weather);
+  document.body.dataset.wind = data.wind.speed;
   todayWrapper.classList.remove("loading");
+  // restart the 3D flip-in animation for each new city
+  todayWrapper.classList.remove("flip-in");
+  void todayWrapper.offsetWidth;
+  todayWrapper.classList.add("flip-in");
   todayWrapper.innerHTML = `
     <div class="today-main">
       <div>
-        <h2 class="city">${escapeHtml(data.name)}<span class="country">${data.sys.country}</span></h2>
+        <h2 class="city">${escapeHtml(city.name)}<span class="country">${city.country}</span></h2>
         <p class="date">${formatLocal(data.dt, data.timezone, { weekday: "long", day: "numeric", month: "long" })}
           · ${formatLocal(data.dt, data.timezone, { hour: "2-digit", minute: "2-digit" })} local time</p>
       </div>
@@ -137,13 +202,13 @@ function createForecast(data) {
   forecast.classList.remove("loading");
   forecast.innerHTML = Object.values(days)
     .slice(0, 5)
-    .map((slots) => createForecastData(slots, offset))
+    .map((slots, i) => createForecastData(slots, offset, i))
     .join("");
   forecastTitle.classList.remove("hide");
 }
 
 // One forecast card: midday conditions plus the day's high and low
-function createForecastData(slots, offset) {
+function createForecastData(slots, offset, index) {
   const midday = slots.reduce((best, slot) =>
     Math.abs(localHour(slot.dt, offset) - 12) < Math.abs(localHour(best.dt, offset) - 12)
       ? slot
@@ -153,7 +218,7 @@ function createForecastData(slots, offset) {
   const low = Math.min(...slots.map((s) => s.main.temp_min));
   const weather = midday.weather[0];
   return `
-    <article class="glass forecast-card">
+    <article class="glass forecast-card tilt" style="--i: ${index}">
       <h3>${formatLocal(midday.dt, offset, { weekday: "short" })}</h3>
       <p class="forecast-date">${formatLocal(midday.dt, offset, { day: "numeric", month: "short" })}</p>
       <img src="${getImageUrl(weather.icon)}" alt="${weather.description}" />
@@ -179,8 +244,39 @@ function setTheme(weather) {
     Thunderstorm: "storm",
     Snow: "snow",
   };
-  const theme = isNight ? "night" : themes[weather.main] || "mist";
-  document.body.dataset.theme = theme;
+  const condition = themes[weather.main] || "mist";
+  document.body.dataset.theme = isNight ? "night" : condition;
+  // used by the 3D scene (scene.js)
+  document.body.dataset.condition = condition;
+  document.body.dataset.night = isNight;
+}
+
+// 3D tilt that follows the pointer (mouse and trackpad only)
+if (window.matchMedia("(hover: hover) and (prefers-reduced-motion: no-preference)").matches) {
+  document.addEventListener("pointermove", (e) => {
+    const card = e.target.closest(".tilt");
+    document.querySelectorAll(".tilt.is-tilting").forEach((el) => {
+      if (el !== card) resetTilt(el);
+    });
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    const max = card.classList.contains("today") ? 4 : 14;
+    card.classList.add("is-tilting");
+    card.style.setProperty("--ry", `${(x - 0.5) * max}deg`);
+    card.style.setProperty("--rx", `${(0.5 - y) * max}deg`);
+    card.style.setProperty("--gx", `${x * 100}%`);
+    card.style.setProperty("--gy", `${y * 100}%`);
+  });
+  document.documentElement.addEventListener("pointerleave", () => {
+    document.querySelectorAll(".tilt.is-tilting").forEach(resetTilt);
+  });
+}
+
+function resetTilt(el) {
+  el.classList.remove("is-tilting");
+  ["--rx", "--ry"].forEach((prop) => el.style.removeProperty(prop));
 }
 
 // Times from the API are UTC seconds; shift by the city's offset and format as UTC
@@ -246,7 +342,8 @@ historyWrapper.addEventListener("click", (e) => {
   if (!btn) return;
   const city = cityData[btn.dataset.index];
   storeCity(city);
-  getData(city.lat, city.lon);
+  startRun({ source: "history", city: city.name });
+  getData(city);
 });
 
 // Clear only this app's history
@@ -259,5 +356,6 @@ clearHistory.addEventListener("click", () => {
 cityHistory();
 // Show the last searched city on load
 if (cityData.length) {
-  getData(cityData[0].lat, cityData[0].lon);
+  startRun({ source: "history", city: cityData[0].name });
+  getData(cityData[0]);
 }

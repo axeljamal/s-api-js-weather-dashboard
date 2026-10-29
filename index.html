@@ -21,6 +21,8 @@
       <span class="blob blob-2"></span>
       <span class="blob blob-3"></span>
     </div>
+    <!-- 3D weather scene (assets/js/scene.js) -->
+    <canvas id="scene" aria-hidden="true"></canvas>
 
     <div class="app">
       <header class="glass app-header">
@@ -56,7 +58,7 @@
       <main class="content">
         <section
           id="today"
-          class="glass today"
+          class="glass today tilt"
           role="region"
           aria-live="polite"
         >
@@ -75,6 +77,70 @@
       </main>
     </div>
 
+    <!-- Floating panel that animates each API call (assets/js/api-flow.js) -->
+    <section class="glass api-flow" id="api-flow" aria-label="How this app calls the API">
+      <button
+        type="button"
+        class="api-flow-head"
+        id="api-flow-toggle"
+        aria-expanded="true"
+        aria-controls="api-flow-body"
+      >
+        <span class="live-dot" aria-hidden="true"></span>
+        <span class="api-flow-title">How this app calls the API</span>
+        <span class="api-flow-status" id="api-flow-status">Waiting for a search…</span>
+        <span class="chevron" aria-hidden="true"></span>
+      </button>
+      <div class="api-flow-body" id="api-flow-body">
+        <div class="api-flow-inner">
+        <div class="flow">
+          <div class="flow-node node-app" id="node-app">
+            <strong>Your browser</strong>
+            <code>script.js</code>
+          </div>
+          <div class="lanes">
+            <div class="lane" data-step="geo">
+              <span class="lane-num">1</span>
+              <div class="track">
+                <p class="lane-label">City name → latitude &amp; longitude</p>
+                <div class="wire"><span class="packet"></span></div>
+              </div>
+              <div class="flow-node node-api">
+                <strong>Geocoding API</strong>
+                <code>/geo/1.0/direct</code>
+              </div>
+            </div>
+            <div class="lane" data-step="weather">
+              <span class="lane-num">2a</span>
+              <div class="track">
+                <p class="lane-label">Coordinates → conditions right now</p>
+                <div class="wire"><span class="packet"></span></div>
+              </div>
+              <div class="flow-node node-api">
+                <strong>Current weather</strong>
+                <code>/data/2.5/weather</code>
+              </div>
+            </div>
+            <div class="lane" data-step="forecast">
+              <span class="lane-num">2b</span>
+              <div class="track">
+                <p class="lane-label">Coordinates → 3-hourly forecast (sent at the same time as 2a)</p>
+                <div class="wire"><span class="packet"></span></div>
+              </div>
+              <div class="flow-node node-api">
+                <strong>5-day forecast</strong>
+                <code>/data/2.5/forecast</code>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ol class="api-log" id="api-log" aria-live="polite"></ol>
+        </div>
+      </div>
+    </section>
+
+    <script src="./assets/js/api-flow.js"></script>
     <script src="./assets/js/script.js"></script>
+    <script type="module" src="./assets/js/scene.js"></script>
   </body>
 </html>
